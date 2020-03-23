@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="document">
+
+	<select id="selectDocList" resultMap="selectDoc">
+		select D.* from document D left join doc_line L on D.doc_no=L.doc_no where L.prev_writer=#{empName} order by D.reg_date desc 
+	</select>
+	<resultMap id="selectDoc" type="document"></resultMap>
+	<select id="selectDocTypeAll" resultType="map">
+		select * from doc_type
+	</select> 
+	<insert id="insertDocument">
+		insert into document values(seq_doc_no.nextval,#{typeNo},#{docType},#{docTitle},#{docStatus},
+									#{docWriter},#{docLastapproval},#{docContent},#{regDate},to_date(#{startDate},'yyyy-mm-dd'),to_date(#{endDate},'yyyy-mm-dd')+1,#{email})
+	</insert>
+	
+	<insert id="insertDocumentLine">
+		<selectKey keyProperty="docNo" resultType="_int"
+				   order="BEFORE">
+			select seq_doc_no.currval from dual
+		</selectKey>
+		insert into doc_line values(seq_line_no.nextval, #{docNo}, #{typeNo}, #{prevWriter},
+									#{nextWriter},#{returnYn})
+	</insert>
+	
+	<select id="selectMemberList" resultType="map">
+		select E.emp_id as "emp_id",E.emp_name as "emp_name" ,d.dept_title as "dept_title",J.job_name as "job_name" from employee E left join department D on E.dept_code = D.dept_id left join job J on E.job_code=J.job_code order by E.emp_id
+	</select>
+	
+	<select id="selectAllCountByAccountNo" resultType="_int">
+		select count(*) from employee
+	</select>
+	
+	<select id="documentDetailView" resultType="document">
+		select * from document where doc_no = #{docNo}
+	</select>
+	
+	<update id="approveDocument">
+		update doc_line set return_yn='N' where doc_no =#{docNo} and next_writer=#{empName}
+	</update>
+	<update id="refuseDocument">
+		update doc_line set return_yn='Y' where doc_no =#{docNo} and next_writer=#{empName}
+	</update>
+	<select id="documentLineView" resultMap="selectDocumentLine">
+		select * from doc_line where doc_no = #{docNo} order by line_no
+	</select>
+	<resultMap id="selectDocumentLine" type="documentLine"></resultMap>
+	
+	<select id="documentNextWriter" resultType="documentLine">
+		select * from doc_line where next_writer=#{empName} and doc_no =#{docNo}
+	</select>
+	
+	<select id="documentPrevWriter" resultType="documentLine">
+		select * from doc_line where next_writer=#{prevWriter} and doc_no =#{docNo}
+	</select>
+	<update id="updateDocument">
+		update document set doc_status='결재완료' where doc_no =#{docNo}
+	</update>
+	<update id="notUpdateDocument">
+		update document set doc_status='반려' where doc_no = #{docNo}
+	</update>
+	<select id="selectDocumentLine" resultType="documentLine">
+		select * from doc_line where prev_writer=#{firstDoc} and doc_no =#{docNo}
+	</select>
+	
+</mapper>

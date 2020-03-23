@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="enrollment">
+	<insert id="insertVendor">
+		insert into vendor values(
+			#{vendorNo},
+			#{vendorName},
+			#{incharge},
+			#{vendorPhone},
+			default,
+			#{vendorTypes}
+		)
+	</insert>
+	
+	<select id="selectVendorList" resultMap="vendorMap">
+		select * from vendor order by vendor_name desc
+	</select>
+	<resultMap type="map" id="vendorMap">
+	</resultMap>
+	
+	<select id="selectOneVendorNo" resultMap="vendorMap">
+		select * from vendor where vendor_no = #{vendorNo}
+	</select>
+	
+	<update id="updateVendor">
+		update vendor
+		set
+		vendor_name = #{vendorName},
+		incharge = #{incharge},
+		vendor_phone = #{vendorPhone},
+		vendor_type = #{vendorTypes}
+		where vendor_no = #{vendorNo}
+	</update>
+	
+	<update id="updateVendorNo">
+		update vendor
+		set
+		vendor_no = #{vendorNoCha}
+		where vendor_no = #{vendorNoCur}
+	</update>
+	
+	<select id="selectStorageList" resultMap="storageMap">
+		select * from storage order by store_no asc
+	</select>
+	<resultMap type="map" id="storageMap">
+	</resultMap>
+	
+	<insert id="insertStorage">
+		insert into storage values(
+			#{storageNo},
+			#{storageName},
+			default
+		)
+	</insert>
+	
+	<select id="selectOneStorageNo" resultMap="storageMap">
+		select * from storage where store_no = #{storageNo}
+	</select>
+	
+	<update id="updateStorage">
+		update storage
+		set
+		store_name = #{storageName}
+		where store_no = #{storageNo}
+	</update>
+	
+	<select id="selectproductList" resultMap="productMap">
+		select pl_no, vendor_no, pt_no, product_name, null as delivery, inprice, outprice, spec, tol, reg_date,
+		case pt_no when 1 then '원재료'
+		                   when 3 then '완제품'
+		                   end as pt_type
+		from product_list
+		union all
+		select rm_no, vendor_no, pt_no, rm_name, delivery, inprice, outprice, spec, tol, reg_date,
+		case pt_no when 1 then '원재료'
+		                   when 3 then '완제품'
+		                   end
+		from raw_material
+		order by pl_no
+	</select>
+	<resultMap type="map" id="productMap">
+	</resultMap>
+	
+	<insert id="insertProduct">
+		insert into product_list values(
+			#{productNo},
+			#{accountNo},
+			#{productName},
+			#{inPrice},
+			#{outPrice},
+			#{spec},
+			#{tol},
+			default,
+			default,
+			#{vendorTypeCode}
+		)
+	</insert>
+	
+	<select id="selectOneProductNo" resultMap="productMap">
+		select * from product_list where pl_no = #{productNo}
+	</select>
+	
+	<select id="selectAccountAll" resultType="map">
+		select vendor_no as "content2", vendor_name as "content", vendor_type as "content3" from vendor order by vendor_no
+	</select>
+	
+	<select id="selectAllCountByAccountNo" resultType="_int">
+		select count(*) from vendor
+	</select>
+	
+	<select id="selectProductTypeAll" resultType="map">
+		select pt_no as "content2", type as "content" from product_type order by pt_no
+	</select>
+	
+	<select id="selectAllCountByProductNo" resultType="_int">
+		select count(*) from product_type
+	</select>
+	
+	<select id="selectOneProductNoForRawMaterial" resultMap="productMap">
+		select * from raw_material where rm_no = #{productNo}
+	</select>
+	
+	<insert id="insertRawMaterial">
+		insert into raw_material values(
+			#{productNo},
+			#{accountNo},
+			default,
+			#{productName},
+			#{delivery},
+			#{inPrice},
+			#{outPrice},
+			#{spec},
+			#{tol},
+			default,
+			#{vendorTypeCode}
+		)
+	</insert>
+	
+	<update id="updateProductNo">
+		update raw_material
+		set
+		rm_no = #{productNoCha}
+		where rm_no = #{productNoCur}
+	</update>
+	
+	<update id="updateRawMaterial">
+		update raw_material
+		set
+		VENDOR_NO = #{accountNo},
+		PT_NO = #{ptNo},
+		DELIVERY = #{delivery},
+		RM_NAME = #{productName},
+		INPRICE = #{inPrice},
+		OUTPRICE = #{outPrice},
+		SPEC = #{spec},
+		TOL = #{tol}
+		where RM_NO = #{productNo}
+	</update>
+	
+	<update id="updateProduct">
+		update product_list
+		set
+		VENDOR_NO = #{accountNo},
+		PRODUCT_NAME = #{productName},
+		INPRICE = #{inPrice},
+		OUTPRICE = #{outPrice},
+		SPEC = #{spec},
+		TOL = #{tol}
+		where PL_NO = #{productNo}
+	</update>
+	
+	<update id="updateProductNoForProductList">
+		update product_list
+		set
+		pl_no = #{productNoCha}
+		where pl_no = #{productNoCur}
+	</update>
+	
+	<select id="selectAllRawmaterial" resultType="_int">
+		select count(*) from raw_material
+	</select>
+	
+	<select id="selectRawmaterialAll" resultType="map">
+		select rm_no as "content2", rm_name as "content" from raw_material order by rm_no
+	</select>
+	
+	<select id="selectVendorTypeAll" resultType="map">
+		select vt_no as "content2", vendor_kindname as "content" from vendor_kind order by vt_no
+	</select>
+	
+	<select id="selectAllVendorType" resultType="_int">
+		select count(*) from vendor_kind
+	</select>
+	
+	<select id="selectrawMaterialDetailAll" resultType="map">
+		select rm_no as "content2", rm_name as "content", pt_no as "content3", vendor_type as "content4" from raw_material order by rm_no
+	</select>
+	
+	<select id="selectAllrawMaterialDetail" resultType="_int">
+		select count(*) from raw_material
+	</select>
+	
+	<select id="selectStoreNoAll" resultType="map">
+		select store_no as "content2", store_name as "content" from storage order by store_no
+	</select>
+	
+	<select id="selectAllStoreNo" resultType="_int">
+		select count(*) from storage
+	</select>
+	
+	<delete id="deleteVendorByVendorNo">
+		delete from vendor where vendor_no = #{vendorNo}
+	</delete>
+	
+	<delete id="deleteStorageByStNo">
+		delete from storage where store_no = #{stNo}
+	</delete>
+	
+	<delete id="deleteProductByProductNo">
+		delete from product_list where pl_no = #{productNo}
+	</delete>
+	
+	<delete id="deleteRawmaterialByRmNo">
+		delete from raw_material where rm_no = #{rmNo}
+	</delete>
+	
+	<select id="checkDataAvailable" resultMap="vendorTypeMap">
+		select * from vendor_kind where vt_no = #{ckData}
+	</select>
+	<resultMap type="map" id="vendorTypeMap">
+	</resultMap>
+
+	<select id="selectJobOrderAll" resultType="map">
+		select jo_no as "content2"
+			   ,customer as "content"
+			   ,due_date as "content3"
+			   ,manager as "content4"
+			   ,product_name as "content5"
+			   ,order_quantity as "content6"
+			   ,pl_no as "content7"
+   		from job_order order by jo_no
+	</select>
+	
+	<select id="selectAllJobOrder" resultType="_int">
+		select count(*) from job_order
+	</select>
+	
+	<select id="selectReceivingLotNoAll" resultType="map">
+		select to_char(rec_date,'yyyy-MM-dd') as "content2"
+			   ,lot_no as "content"
+			   ,quantity as "content3"
+   		from receiving 
+   		where rm_no = #{thisCode} and store_no = 2 <!-- 2인것만 -->
+   		order by rec_date
+	</select>
+	
+	<select id="selectAllReceivingLotNo" resultType="_int">
+		select count(*) from receiving
+		where rm_no = #{thisCode} and store_no = 2  <!-- 2인것만 -->
+	</select>
+	
+	<update id="updateRawMeterial">
+		update raw_material
+		set
+		VENDOR_NO = #{accountNo},
+		RM_NAME = #{productName},
+		INPRICE = #{inPrice},
+		OUTPRICE = #{outPrice},
+		SPEC = #{spec},
+		TOL = #{tol},
+		delivery = #{delivery}
+		where RM_NO = #{productNo}
+	</update>	
+	
+</mapper>

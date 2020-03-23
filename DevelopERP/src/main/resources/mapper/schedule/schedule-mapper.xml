@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="schedule">
+<insert id="insertSchedule">
+insert into schedule values(seq_schedule_no.nextval,#{email},#{title},#{content},to_date(#{startScheduleTime},'YYYY-MM-DD HH24:MI'),to_date(#{endScheduleTime},'YYYY-MM-DD HH24:MI'))
+
+</insert>
+<select id="getSchedule" resultType="Schedule">
+select * from schedule where email=#{email}
+</select>
+<select id="scheduleList" resultType="Schedule">
+  select * from schedule where email=#{email} and to_date(start_scheduletime,'yyyy-mm-dd')<![CDATA[<]]>=to_date(to_date(#{date},'yyyy-mm-dd'),'yyyy-mm-dd') and to_date(end_scheduletime,'yyyy-mm-dd')>=to_date(to_date(#{date},'yyyy-mm-dd'),'yyyy-mm-dd')
+</select>
+
+<delete id="scheduleDelete">
+delete schedule where schedule_no=#{scheduleNo}
+</delete>
+<update id="scheduleUpdate">
+update schedule set title=#{title},content=#{content},start_scheduletime=to_date(#{startScheduleTime},'YYYY-MM-DD HH24:MI'),end_scheduletime=to_date(#{endScheduleTime},'YYYY-MM-DD HH24:MI') where schedule_no=#{scheduleNo}
+</update>
+</mapper>

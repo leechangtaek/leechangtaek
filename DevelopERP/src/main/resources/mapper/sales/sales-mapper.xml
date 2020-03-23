@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="sales">
+
+	<select id="selectAllSalesList" resultType="map">
+		select v.vendor_name, p.product_name, s.sales_no, s.lot_no, s.pl_no, s.vendor_no, s.quantity, s.outprice, s.inprice, to_char(sales_date,'yyyy-MM-dd') as "SALES_DATE" from sales s join product_list p on p.pl_no = s.pl_no join vendor v on v.vendor_no = s.vendor_no
+		where 1=1
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and sales_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+	</select>
+	
+	<select id="selectSalesOneBySalesNo" resultType="map">
+		select * from sales where sales_no = #{sales_no}
+	</select>
+	
+	<delete id="deleteSalesOneBySalesNo">
+		delete sales where sales_no = #{salesNo}
+	</delete>
+	
+	<update id="reInsertProductBySalesNo">
+		update production set store_no = 4 where lot_no = #{lotNo} and quantity = #{quantity} and rownum = 1
+	</update>
+	
+	<select id="selectLotAllInProduction" resultType="map">
+		select p.*, l.inprice, l.outprice from production p join product_list l on p.pl_no = l.pl_no where store_no = 4
+	</select>
+	
+	<select id="selectAllCountByLotNo" resultType="_int">
+		select count(*) from production where store_no = 4
+	</select>
+	
+	<update id= "updateSalesList" parameterType="java.util.Map">
+	 <if test="salesList.size != 0">
+		<foreach collection="salesList" item="item" separator="; " open="DECLARE BEGIN"  close="; END;">
+	   		   update
+	   		   production set
+	   		   quantity = quantity - to_number(#{item.salesQuantityList})
+	   		   where lot_no = #{item.lotNoList}
+        </foreach>
+     </if>
+	</update>
+	
+	<insert id="insertSalesListInProduction" parameterType="java.util.Map">
+	 <if test="salesList.size != 0">
+		<foreach collection="salesList" item="item" separator=" " open="insert all " close="SELECT * FROM DUAL">
+	   		   into production values (#{item.lotNoList}||'_'||seq_sales_lot.nextval, #{item.plNoList}, 7, #{item.vendorNoList}, 3, (select product_name from product_list where pl_no = #{item.plNoList}),
+	   		   #{item.salesQuantityList}, 'Y', 'Y', (select production from production where lot_no =#{item.lotNoList} and rownum=1), (select measurement from production where lot_no=#{item.lotNoList} and rownum=1 )
+	   		   )
+        </foreach>
+     </if>
+	</insert>
+	
+	<select id="selectSalesProduct" resultType="map">
+		select pl_no, (select product_name from product_list where pl_no = s.pl_no) as "PRODUCT_NAME" from sales s group by pl_no
+	</select>
+	
+	<select id="selectSalesMoney" resultType="map">
+		select  pl_no, (select product_name from product_list where pl_no =s.pl_no) as "PRODUCT_NAME", sum(quantity)*sum(outprice) as "SUM_OUTPRICE", sum(quantity)*sum(inprice) as "SUM_INPRICE"
+		 from sales s
+		where 1=1
+		 <if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and sales_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by pl_no
+	</select>
+	
+	<select id="selectTotalSalesData" resultType="map">
+		select sum(SUM_INPRICE) as "TOTALINPRICE", sum(SUM_OUTPRICE)  as "TOTALOUTPRICE" from (select  pl_no, sum(quantity)*sum(outprice) as "SUM_OUTPRICE", sum(quantity)*sum(inprice) as "SUM_INPRICE" from sales
+		where 1=1
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and sales_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by pl_no)
+	
+	</select>
+	
+	<select id="selectTotalSalesDataPerMonth" resultType="map">
+		select sales_date, sum(SUM_INPRICE) as "TOTALINPRICE", sum(SUM_OUTPRICE) as "TOTALOUTPRICE" from (select s.pl_no, substr(to_char(s.sales_date,'yy-MM-dd'),1,5) as "SALES_DATE", (select product_name from product_list where pl_no =s.pl_no) as "PRODUCT_NAME",  sum(s.quantity*s.outprice) as "SUM_OUTPRICE", sum(s.quantity*s.inprice) as "SUM_INPRICE" from sales s group by s.pl_no, substr(to_char(s.sales_date,'yy-MM-dd'),1,5)) group by sales_date order by sales_date
+	</select>
+	
+	
+</mapper>

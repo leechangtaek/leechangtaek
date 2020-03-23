@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="productplan">
+
+
+	<!-- 생산현황 및 월별 생산계획 쿼리문 -->
+	<select id="selectTotalEpPlan" resultType="_int">
+		select sum(order_quantity)
+		from job_order
+		<if test='year == "all" and productNo != null and productNo != ""'>
+		where pl_no = #{productNo} 
+		</if>
+		<if test='year != "all" and productNo != null and productNo != ""'>
+		where pl_no = #{productNo} and to_char(enrolldate, 'yyyy') like #{year} 
+		</if>
+	</select>
+	
+	<select id="selectTotalEpResult" resultType="_int">
+		select sum(quantity)
+		from production
+		<if test='year == "all" and productNo != null and productNo != ""'>
+		where quality_yn like 'Y' and pl_no = #{productNo} 
+		</if>
+		<if test='year != "all" and productNo != null and productNo != ""'>
+		where quality_yn like 'Y' and pl_no = #{productNo} and to_char(production, 'yyyy') like #{year} 
+		</if>
+		
+	</select>
+	
+	<select  id="selectProduction" resultType="Map" parameterType="String">
+			select distinct pl_no as "plNo",
+				   product_name as "productName"
+			from production
+		<if test='_parameter != "all" and _parameter != null and _parameter != ""'>
+			where to_char(production, 'yyyy') like #{_parameter}
+		</if>
+
+	</select>
+	
+	<select id="selectTotalContentsByP" resultType="_int" parameterType="String">
+			select count(distinct product_name)
+			from production
+		<if test= '_parameter != "all" and _parameter != null and _parameter != ""'>
+			where to_char(production, 'yyyy') like #{_parameter}
+		</if>
+	</select>
+	
+	<select id="monthlyOutputByProduct" resultType="Map">
+		select to_number(substr(to_char(production,'yymm'),3,2)) as "month",
+        sum(quantity) as "output",
+        to_char(production, 'yyyy') as "date",
+        product_name as "productName"
+		from production
+		<choose>
+			<when test='year.equals("all")'>
+			where pl_no = #{productNo} and to_char(production,'yyyy') = 2019
+			group by to_number(substr(to_char(production,'yymm'),3,2)),to_char(production, 'yyyy'),product_name
+			union
+			select to_number(substr(to_char(production,'yymm'),3,2)) as "month",
+			        sum(quantity) as "output",
+			        to_char(production, 'yyyy') as "date",
+			        product_name as "productName"
+			from production
+			where pl_no = #{productNo} and to_char(production,'yyyy') = 2020
+			group by to_number(substr(to_char(production,'yymm'),3,2)),to_char(production, 'yyyy'),product_name
+			order by 3
+			</when>
+			
+			<when test='year != "all" and year != null and year != ""'>
+			where pl_no = #{productNo} and to_char(production,'yyyy') = #{year} 
+			group by to_number(substr(to_char(production,'yymm'),3,2)),to_char(production, 'yyyy'),product_name
+			order by to_number(substr(to_char(production,'yymm'),3,2)) asc
+			</when>
+		</choose>
+	</select>
+	
+	<select id="productionPlanDate" resultType="String">
+		select to_char(sysdate,'yyyy')||'년 ' || to_number(to_char(sysdate,'mm'))||'월'
+		from dual
+	</select>
+	
+	<select id="sumLast3Months" resultType="_int" parameterType="String">
+		select sum(quantity)
+		from production
+		where product_name = #{value} 
+		         and to_char(production,'yymm') 
+		         in(to_char(add_months(sysdate,-1),'yymm'),
+		            to_char(add_months(sysdate,-2),'yymm'),
+		            to_char(add_months(sysdate,-3),'yymm'))
+	</select>
+	
+	
+	
+	<!-- 원재료 구매계획 쿼리문 -->
+	<select id="selectFirstByPL" resultType="Map">
+		select pl.product_name as "productName",
+		        B.bom_no as "bomNo",
+		        rm.rm_no as "rmNo",
+		        RM.rm_name as "rmName",
+		        br.quantity as "requiredQ",
+		        sum(R.quantity) as "rmStock" 
+		from product_list PL 
+		        join bom B on PL.pl_no = B.pl_no
+		        join bom_rm BR on B.bom_no = BR.bom_no
+		        left join receiving R on BR.rm_no = R.rm_no
+		        join raw_material RM on R.rm_no = RM.rm_no  
+		where PL.pl_no = 8
+		group by rm.rm_no, pl.product_name, B.bom_no, RM.rm_name, br.quantity
+	</select>
+	
+	<select id="selectEndProduct" resultType="Map">
+		select pl_no as "plNo", 
+			   product_name as "productName" 
+		from product_list
+	</select>
+	
+	<select id="selectTotalContentByEp" resultType="_int">
+		select count(*) from product_list
+	</select>
+	
+	<select id="eachAmount" resultType="Map">
+		select pl.product_name as "productName",
+		        B.bom_no as "bomNo",
+		        rm.rm_no as "rmNo",
+		        RM.rm_name as "rmName",
+		        br.quantity as "requiredQ",
+		        sum(R.quantity) as "rmStock" 
+		from product_list PL 
+		        join bom B on PL.pl_no = B.pl_no
+		        join bom_rm BR on B.bom_no = BR.bom_no
+		        left join receiving R on BR.rm_no = R.rm_no
+		        join raw_material RM on R.rm_no = RM.rm_no  
+        where PL.pl_no = #{productNo}
+        group by rm.rm_no, pl.product_name, B.bom_no, RM.rm_name, br.quantity
+	</select>
+	<!-- <resultMap type="map" id="eaMap" >
+		<result column="pl.product_name" property="productName" />
+		<result column="B.bom_no" property="bomNo"></result>
+		<result column="br.rm_no" property="rmNo"></result>
+		<result column="br.quantity" property="requireQ"></result>
+		<result column="R.quantity" property="rmStock"></result>
+		
+	</resultMap> -->
+	<select id="selectVendorNo" resultType="String">
+		select vendor_no
+		from raw_material
+		where rm_no = #{rmNo}
+	</select>
+	
+	<insert id="insertOrderRequest">
+		insert into order_request
+		values(
+			#{rmNo},
+			#{vendorNo},
+			to_date(#{enrollDate}, 'yyyy/MM/dd'),
+			to_date(#{dueDate}, 'yyyy/MM/dd'),
+			#{rmName},
+			#{requireAmount},
+			#{orderContent}
+		)
+	</insert>
+	
+	<!-- 작업지시서 쿼리문 -->
+	<select id="selectJobOrder" resultMap="joMap" >
+		select jo_no,
+			   customer,
+			   to_char(due_date, 'YYYY-MM-DD') as "dueDate",
+			   manager,
+			   product_name,
+			   order_quantity,
+			   order_content
+		from job_order order by jo_no desc
+	</select>
+	<resultMap type="map" id="joMap" >
+		<id column="jo_no" property="joNo" ></id>
+		<result column="customer" property="customer"></result>
+		<result column="dueDate" property="dueDate"></result>
+		<result column="manager" property="manager"></result>
+		<result column="product_name" property="productName"></result>
+		<result column="order_quantity" property="orderQuantity"></result>
+		<result column="order_content" property="orderContent"></result>
+		
+	</resultMap>
+	<select id="selectJoTotalContents" resultType="_int">
+		select count(*) from job_order
+	</select>
+	
+	<insert id="insertJobOrder">
+		insert into job_order
+		values( #{joNo},
+				#{plNo},
+				(select vendor_no
+				from vendor
+				where vendor_type=2 and vendor_name=#{customer}),
+				#{customer},
+				to_date(#{dueDate}, 'yyyy/MM/dd'),
+				#{manager},
+				#{productName},
+				#{quantity},
+				#{orderContent},
+				to_date(#{enrollDate}, 'yyyy/MM/dd')
+				)
+	</insert>
+	<!-- 작업지시서 세부사항 조회 쿼리문 -->
+	<select id="selectCustomer" resultType="Map">
+		select vendor_name as "content1",
+			   incharge as "content2"
+		from vendor
+		where vendor_type = 2
+	</select>
+	<select id="selectTotalContentByCtmr" resultType="_int">
+		select count(*) from vendor where vendor_type = 2
+	</select>
+	<select id="selectProductName" resultType="Map">
+		select pl_no as "content1",
+			   product_name as "content2" 
+		from product_list
+		where pt_no = 3
+	</select>
+	<select id="selectTotalContentByPn" resultType="_int">
+		select count(*) from product_list
+	</select>
+	<!-- end -->
+	
+	<select id="selectOneJo" resultMap="joMap">
+		select jo_no,
+			   customer,
+			   to_char(due_date, 'YYYY-MM-DD') as "dueDate",
+			   manager,
+			   product_name,
+			   order_quantity,
+			   order_content
+		from job_order 
+		where jo_no = #{joNo}
+		order by jo_no desc 
+	</select>
+	
+	<update id="updateJobOrder">
+		update job_order
+		set 
+			due_date = to_date(#{dueDate}, 'yy/MM/dd'),
+			customer = #{customer},
+			manager = #{manager},
+			product_name = #{productName},
+			order_quantity = #{quantity},
+			order_content = #{orderContent}
+		where jo_no = #{joNo} 
+	</update>
+	<delete id="deleteOneJo">
+		delete from job_order
+		where jo_no = #{joNo}
+	</delete>
+	
+	
+	
+	
+	
+	
+</mapper>

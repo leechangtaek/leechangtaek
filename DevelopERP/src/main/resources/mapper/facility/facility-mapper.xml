@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="facility">
+	<select id="selectAll" resultType="Facility">
+	select * from facility
+	</select>
+	<select id="selectOne" resultType="Facility">
+	select * from facility where facility_no=#{facilityNo}
+	</select>
+	<insert id="insertBook">
+	insert into facility_book values(seq_book_no.nextval,#{facilityNo},#{email},#{bookDay},#{bookStarttime},#{bookEndtime})
+	</insert>
+	<select id="facilityTime" resultType="FacilityBook">
+	select * from facility_book where facility_no=#{facilityNo} and book_day=#{bookDay}
+	</select>
+	<select id="facilityBookListGet" resultType="FacilityBook">
+	select * from facility_book where facility_no=#{facilityNo} and book_day=#{bookDay} order by book_starttime
+	</select>
+</mapper>

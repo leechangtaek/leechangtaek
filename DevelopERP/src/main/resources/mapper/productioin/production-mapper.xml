@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="production">
+
+	<select id="selectproductList" resultMap="productMap">
+		select * from
+		(
+		    select pl.pl_no, pl.vendor_no, pl.pt_no, pl.product_name, null as delivery, pl.inprice, pl.outprice, pl.spec, pl.tol, pl.reg_date, b.bom_no, sbq.cnt, sbq.sum,
+		    case pt_no when 1 then '원재료'
+		                   when 3 then '완제품'
+		                   end as pt_type
+		    from product_list pl left join bom b on pl.pl_no = b.pl_no
+            left join (select bom_no, sum(quantity) sum, count(bom_no) cnt from bom_rm br join raw_material rm on br.rm_no = rm.rm_no group by bom_no) sbq on b.bom_no = sbq.bom_no
+		    union all
+		    select rm_no, vendor_no, pt_no, rm_name, delivery, inprice, outprice, spec, tol, reg_date, null, null, null,
+		    case pt_no when 1 then '원재료'
+		                   when 3 then '완제품'
+		                   end
+		    from raw_material
+		)
+		order by pt_no desc, pl_no asc
+	</select>
+	<resultMap type="map" id="productMap">
+	</resultMap>
+
+	<select id="selectRawMaterialList" resultMap="rawmaterialMap">
+		select * from raw_material order by rm_no
+	</select>
+	<resultMap type="map" id="rawmaterialMap">
+	</resultMap>
+
+	<insert id="insertBOM">
+		insert into bom values(
+			seq_bom.nextval,
+			#{productCode},
+			default
+		)
+	</insert>
+	
+	<select id="selectBOMNobyProductCode" resultType="_int">
+		select bom_no from bom where pl_no = #{productCode}
+	</select>
+	
+	<insert id="insertBOMlist" parameterType="java.util.Map">
+	 <if test="BOMList.size != 0">
+		<foreach collection="BOMList" item="item" separator=" " open="INSERT ALL " close="SELECT * FROM DUAL">
+	   		   into bom_rm(bom_no, rm_no, quantity) 
+        	   VALUES 
+	   		   (
+	   		   #{bomNo},
+               #{item.pCodeList},
+               #{item.pCountList}
+               )
+        </foreach>
+     </if>
+	</insert>
+	
+	<select id="selectBOMForm" resultMap="BOMMap">
+		select * from bom where pl_no = #{tdPtNo}
+	</select>
+	<resultMap type="map" id="BOMMap">
+	</resultMap>
+	
+	<select id="selectBOMRmListByBOMNo" resultMap="BOMRmMap">
+		select br.bom_no, br.rm_no, br.quantity, rm.rm_name 
+		from bom_rm br join raw_material rm on br.rm_no = rm.rm_no
+		where bom_no = #{bomNo}
+	</select>
+	<resultMap type="map" id="BOMRmMap">
+	</resultMap>
+	
+	<delete id="deleteBOMRm" parameterType="java.util.Map">
+	    DELETE FROM bom_rm
+	    <where>
+	    <foreach collection="deleteList" item="item" open="" close="" separator="OR">
+	        (rm_no = #{item.removeCode})
+	    </foreach>
+	    </where>
+	</delete>
+	
+	<insert id="updateBOMRm" parameterType="java.util.Map" >
+        MERGE INTO bom_rm R1
+            USING (
+                <foreach  collection="BOMList" item="item" open="" close="" separator="union">
+                    SELECT #{item.pCodeList} AS pCodeList
+                         , #{item.pCountList} AS pCountList
+                         , #{bomNo} AS bomNo
+                     FROM SYS.DUAL
+                </foreach>
+            ) T1
+                ON (R1.rm_no = T1.pCodeList
+                	AND R1.bom_no = T1.bomNo)
+            WHEN MATCHED THEN
+                UPDATE 
+                <set>
+                      R1.quantity = T1.pCountList
+                </set>
+            WHEN NOT MATCHED THEN
+                INSERT 
+                <trim prefix="(" suffix=")" suffixOverrides="," > 
+                      bom_no
+                    , rm_no
+                    , quantity
+                </trim>
+                <trim  prefix="values (" suffix=")" suffixOverrides=",">
+                      T1.bomNo
+                    , T1.pCodeList
+                    , T1.pCountList
+                </trim>
+	</insert>
+
+	<!-- <select id="selectReceivingList" resultMap="receivingMap">
+		select * from receiving r
+		    join raw_material rm on r.rm_no = rm.rm_no
+		    join storage s on r.store_no = s.store_no
+		    join product_type pt on rm.pt_no = pt.pt_no
+		order by lot_no
+	</select>
+	<resultMap type="map" id="receivingMap">
+	</resultMap>
+
+	<insert id="addWarehousing">
+		insert into receiving values(
+			(SELECT SUBSTR(RM_NAME, 1, 2) ||  SUBSTR(RM_NAME, INSTR(RM_NAME , ' ', 1, 1)+1,  2) ||  SUBSTR(RM_NAME, INSTR(RM_NAME , ' ', 1, 2)+1,  2)
+			 FROM RAW_MATERIAL
+			 WHERE RM_NO = #{rawMaterialDetail}) || '_' || to_char(to_date(#{regDate},'yyyy-MM-dd'),'yyyyMMdd') || '_' || SEQ_LOT_NO.NEXTVAL,
+			#{storeNo},
+			#{rawMaterialDetail},
+			#{ptNo},
+			#{vendorTypeCode},
+			#{quantity},
+			#{quailityYN},
+			#{insectionYN},
+			#{measurement},
+			to_date(#{regDate},'yyyy-MM-dd')
+		)
+	</insert>
+	
+	<select id="selectWarehousingByLotNo" resultMap="warehosuingMap">
+		select * from receiving where lot_no = #{tdLotNo}
+	</select>
+	<resultMap type="map" id="warehosuingMap">
+	</resultMap>
+	
+	<update id="updateWarehousing">
+		update receiving
+		set
+		store_no = #{storeNo},
+		rm_no = #{rawMaterialDetail},
+		pt_no = #{ptNo},
+		vendor_type = #{vendorTypeCode},
+		quantity = #{quantity},
+		quality_yn = #{quailityYN},
+		insection_yn = #{insectionYN},
+		measurement = #{measurement},
+		rec_date = to_date(#{regDate},'yyyy-MM-dd')
+		where lot_no = #{lotNo}
+	</update> -->
+	
+	<delete id="deleteBOMByBOMNo">
+		delete from bom where bom_no = #{bomNo}
+	</delete>
+	
+	<select id="selectRotNobyRmNo" resultType="_int">
+		select lot_no from receiving where rm_no = #{rmNo}
+	</select>
+	
+	<delete id="deleteWarehousingByRmNo">
+		delete from receiving where lot_no = #{lotNo}
+	</delete>
+	
+	<select id="selectReleaseList" resultMap="releaseMap">
+		select * from release order by lot_no
+	</select>
+	<resultMap type="map" id="releaseMap">
+	</resultMap>
+	
+	<select id="checkBOMExist" resultMap="BOMChkMap">
+		 select * from bom b join product_list pl on b.pl_no = pl.pl_no
+                                   join bom_rm br on br.bom_no = b.bom_no
+                                   join raw_material rm on rm.rm_no = br.rm_no
+ 		where product_name = #{chkBOM}
+	</select>
+	<resultMap type="map" id="BOMChkMap">
+	</resultMap>
+	
+	<select id="quantityCheck" resultMap="QuantityChkMap">
+		select rm.rm_no,rm.rm_name, br.quantity*#{rQuantity} required
+		from bom b join product_list pl on b.pl_no = pl.pl_no
+		                                   join bom_rm br on br.bom_no = b.bom_no
+		                                   join raw_material rm on rm.rm_no = br.rm_no
+		                                   where product_name = #{chkBOM}
+	</select>
+	<resultMap type="map" id="QuantityChkMap">
+	</resultMap>
+	
+	<update id="addWarehousing">
+		INSERT INTO release
+		( lot_no, store_no, rm_no, pt_no, vendor_type, quantity, quality_yn, insection_yn, measurement, reg_date)
+		SELECT lot_no, 6, rm_no, pt_no, vendor_type, #{pReleasing}, quality_yn, insection_yn, measurement, sysdate
+		FROM receiving
+		WHERE lot_no = #{pLotNo}
+	</update>
+	
+	<update id="updateReceivingForWarehousing">
+		update receiving set quantity = quantity-#{pReleasing} where lot_no = #{pLotNo}
+	</update>
+	
+	<select id="selectOneProductByPlNo" resultMap="pMap">
+	select * from product_list where pl_no = #{rCode}
+	</select>
+	<resultMap type="map" id="pMap">
+	</resultMap>
+	
+	<select id="selectOneBOMNoByPlNo" resultType="_int">
+	select bom_no from bom where pl_no = #{rCode}
+	</select>
+	
+	<insert id="insertProduction">
+	insert into production values(
+			('p_'||(select substr(product_name,1,2)||substr(product_name,(instr(product_name,'_')+1),2) from product_list where pl_no=#{rCode})||'_'||to_char(sysdate,'yyyyMMdd')||'_'|| SEQ_PRODUCTION_LOTNO.nextval),
+			#{rCode},
+			default,
+			#{vendorNo},
+			#{ptNo},
+			#{productName},
+			#{rQuantity},
+			default,
+			default,
+			default,
+			default
+		)
+	</insert>
+	
+	<select id="selectProductionList" resultMap="pListMap">
+	select * from production order by production
+	</select>
+	<resultMap type="map" id="pListMap">
+	</resultMap>
+	
+</mapper>

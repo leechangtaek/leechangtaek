@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="attend">
+	<insert id="attendant">
+		insert into attend(email,attend_start) values(#{email},sysdate+(1/24)*9)
+	</insert>
+	
+	<insert id="leave">
+		insert into attend(email,attend_end) values(#{email},sysdate+(1/24)*9)
+	</insert>
+	<select id="attendShow" resultType="Attend">
+	select email,attend_start,to_char(attend_start,'yyyy-mm-dd')attendstartform,attend_end,to_char(attend_end,'yyyy-mm-dd')attendendform,early_attend,to_char(early_attend,'yyyy-mm-dd')earlyattendform,reason from attend where email=#{email}
+	</select>
+	<select id="checkAttend" resultType="string">
+	select to_char(attend_start,'yyyy-mm-dd')attendstartform from attend where email=#{email} and to_char(attend_start,'yyyy-mm-dd')=#{attendStart}
+	</select>
+	
+	<select id="checkend" resultType="string">
+	select to_char(attend_end,'yyyy-mm-dd')attendendform from attend where email=#{email} and to_char(attend_end,'yyyy-mm-dd')=#{attendEnd}
+	</select>
+	<select id="checkearly" resultType="string">
+	select to_char(early_attend,'yyyy-mm-dd')earlyattendform from attend where email=#{email} and to_char(early_attend,'yyyy-mm-dd')=#{earlyAttend}
+	</select>
+	<select id="checkholiday" resultType="string">
+	select to_char(attend_end,'yyyy-mm-dd')holiday from attend where email=#{email} and reason='휴가' and attend_start<![CDATA[<]]>=to_date(#{attendStart},'yyyy-mm-dd') and attend_end>=to_date(#{attendStart},'yyyy-mm-dd') 
+	</select>
+	<insert id="earlyLeave">
+		insert into attend(email,early_attend,reason) values(#{email},sysdate+(1/24)*9,#{reason})
+	</insert>
+</mapper>

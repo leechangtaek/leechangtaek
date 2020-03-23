@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+<mapper namespace="member">
+	<insert id="insertMember">
+		insert into employee values(seq_emp_id.nextval, #{empName}, #{empNo}, #{email}
+		,#{phone}, #{deptCode},#{jobCode},sysdate,null,#{quitYn},#{password},#{profileImage})
+	</insert>
+	
+	<select id="selectDeptList" resultMap="selectList">
+		select * from department	
+	</select>
+	<select id="selectJobList" resultMap="selectList">
+		select * from job	
+	</select>
+	
+	<resultMap id="selectList" type="Map">
+	</resultMap>
+	<select  id="memberSelectList" resultMap="selectListMember">
+		select * from employee
+	</select>
+	
+	<resultMap id="selectListMember" type="member"></resultMap>
+	
+	<select id="selectOneMember" resultType="member">
+		select * from employee where email=#{email}
+	</select>
+	
+	<update id="updatePassword">
+		update employee set password=#{password} where email=#{email}
+	</update>
+	
+	<select id="selectOneJob" resultType="Map">
+		select job_name from job where job_code=(select job_code from employee where email=#{email})
+	</select>
+	
+	<select id="selectOneDept" resultType="Map">
+		select dept_title from department where dept_id=(select dept_code from employee where email=#{email})
+	</select>
+	
+	<update id="updateMember">
+		update employee set emp_name=#{empName},emp_no=#{empNo},email=#{email},phone=#{phone},dept_code=#{deptCode},job_code=#{jobCode} where email=#{email}
+	</update>
+	<update id="updateProfileImage">
+		update employee set profileimage=#{profileImage} where email=#{email}
+	</update>
+	<select id="memberManage" resultType="member">
+	select  emp_id,emp_name,emp_no,email,phone,job_name as job_code,hire_date,quit_date,quit_yn,dept_title as dept_code from employee e left join job j on e.job_code=j.job_code left join department d on d.dept_id=e.dept_code
+	</select>
+	<delete id="memberDelete">
+	delete from employee where email=#{email}
+	</delete>
+	<select id="memberManageModify" resultType="member">
+select  emp_id,emp_name,emp_no,email,phone,job_name as job_code,hire_date,quit_date,quit_yn,dept_title as dept_code from employee e left join job j on e.job_code=j.job_code left join department d on d.dept_id=e.dept_code where email=#{email} 
+</select>
+<update id="memberManageModifyEnd">
+	update employee set emp_name=#{empName},dept_code=#{deptCode},job_code=#{jobCode},emp_no=#{empNo},phone=#{phone} where email=#{email}
+	</update>
+</mapper>

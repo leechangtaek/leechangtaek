@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="stock">
+
+	<resultMap type="map" id="stockMap">
+	</resultMap>
+	
+	<select id="selectRmStockList" resultMap="stockMap">
+	   SELECT RECEIVING.RM_NO, RAW_MATERIAL.RM_NAME, RAW_MATERIAL.SPEC, RAW_MATERIAL.TOL,RECEIVING.QUALITY_YN, SUM(RECEIVING.QUANTITY) AS RM_SUM, VENDOR.VENDOR_NO, VENDOR.VENDOR_NAME
+	   FROM RECEIVING LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+                      LEFT JOIN VENDOR ON RAW_MATERIAL.VENDOR_NO = VENDOR.VENDOR_NO
+       GROUP BY RECEIVING.RM_NO, RAW_MATERIAL.RM_NAME, RAW_MATERIAL.SPEC, RAW_MATERIAL.TOL,RECEIVING.QUALITY_YN, VENDOR.VENDOR_NO, VENDOR.VENDOR_NAME
+	   ORDER BY RECEIVING.RM_NO
+	</select>
+	
+	<select id="selectRmTotalList" resultMap="stockMap">
+	   SELECT RAW_MATERIAL.RM_NAME, SUM(RECEIVING.QUANTITY) AS RM_SUM
+	   FROM RECEIVING LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+                      LEFT JOIN VENDOR ON RAW_MATERIAL.VENDOR_NO = VENDOR.VENDOR_NO
+       GROUP BY RECEIVING.RM_NO, RAW_MATERIAL.RM_NAME, RAW_MATERIAL.SPEC, RAW_MATERIAL.TOL,RECEIVING.QUALITY_YN, VENDOR.VENDOR_NO, VENDOR.VENDOR_NAME
+	   ORDER BY RECEIVING.RM_NO
+	</select>
+	
+	<select id="selectRmSnrStockList" resultMap="stockMap">
+	   SELECT RECEIVING.LOT_NO, RECEIVING.RM_NO, RAW_MATERIAL.RM_NAME, RAW_MATERIAL.SPEC, RAW_MATERIAL.TOL,RECEIVING.QUALITY_YN, RECEIVING.QUANTITY, REC_DATE, VENDOR.VENDOR_NO, VENDOR.VENDOR_NAME
+	   FROM RECEIVING LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+                      LEFT JOIN VENDOR ON RAW_MATERIAL.VENDOR_NO = VENDOR.VENDOR_NO
+	   ORDER BY RECEIVING.REC_DATE DESC
+	</select>
+	
+	<select id="selectProductStockList" resultMap="stockMap">
+	   SELECT *
+	   FROM PRODUCTION
+	   ORDER BY PRODUCTION DESC
+	</select>
+	
+	<select id="selectProductStockTotalList" resultMap="stockMap">
+	   SELECT PRODUCT_NAME, SUM(QUANTITY) AS TOTAL 
+	   FROM PRODUCTION
+	   GROUP BY PRODUCT_NAME
+	</select>
+	
+	
+	<select id="selectStorageStockList" resultMap="stockMap">
+	   SELECT STORAGE.STORE_NO, STORAGE.STORE_NAME, PRODUCTION.LOT_NO, PRODUCTION.PRODUCT_NAME AS STORED_ITEM_NAME, PRODUCTION.QUANTITY, PRODUCT_TYPE.TYPE
+	   FROM PRODUCTION LEFT JOIN STORAGE  ON STORAGE.STORE_NO = PRODUCTION.STORE_NO
+                       LEFT JOIN PRODUCT_TYPE  ON PRODUCTION.PT_NO = PRODUCT_TYPE.PT_NO
+                      WHERE PRODUCTION.STORE_NO IN (#{storeNo})
+	   UNION
+	   SELECT STORAGE.STORE_NO, STORAGE.STORE_NAME, RECEIVING.LOT_NO, RAW_MATERIAL.RM_NAME AS STORED_ITEM_NAME, RECEIVING.QUANTITY,  PRODUCT_TYPE.TYPE
+	   FROM RECEIVING LEFT JOIN STORAGE ON STORAGE.STORE_NO = RECEIVING.STORE_NO
+                      LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+                      LEFT JOIN PRODUCT_TYPE  ON RECEIVING.PT_NO = PRODUCT_TYPE.PT_NO
+                      WHERE RECEIVING.STORE_NO IN (#{storeNo})
+	</select>
+
+
+	<select id="allStorageStockList" resultMap="stockMap">
+	   SELECT * FROM(
+		   SELECT STORAGE.STORE_NO, STORAGE.STORE_NAME, PRODUCTION.LOT_NO, PRODUCTION.PRODUCT_NAME AS STORED_ITEM_NAME, PRODUCTION.QUANTITY, PRODUCT_TYPE.TYPE
+		   FROM PRODUCTION LEFT JOIN STORAGE  ON STORAGE.STORE_NO = PRODUCTION.STORE_NO
+	                       LEFT JOIN PRODUCT_TYPE  ON PRODUCTION.PT_NO = PRODUCT_TYPE.PT_NO
+		   UNION
+		   SELECT STORAGE.STORE_NO, STORAGE.STORE_NAME, RECEIVING.LOT_NO, RAW_MATERIAL.RM_NAME AS STORED_ITEM_NAME, RECEIVING.QUANTITY,  PRODUCT_TYPE.TYPE
+		   FROM RECEIVING LEFT JOIN STORAGE ON STORAGE.STORE_NO = RECEIVING.STORE_NO
+	                      LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+	                      LEFT JOIN PRODUCT_TYPE  ON RECEIVING.PT_NO = PRODUCT_TYPE.PT_NO
+	                      )
+	   ORDER BY STORE_NO          
+	</select>
+	
+	<select id="storageTotalList" resultMap="stockMap">
+	   SELECT STORAGE.STORE_NO, SUM(PRODUCTION.QUANTITY) AS STORE_SUM
+	   FROM PRODUCTION LEFT JOIN STORAGE  ON STORAGE.STORE_NO = PRODUCTION.STORE_NO
+                       LEFT JOIN PRODUCT_TYPE  ON PRODUCTION.PT_NO = PRODUCT_TYPE.PT_NO
+       GROUP BY STORAGE.STORE_NO	   
+       UNION
+	   SELECT STORAGE.STORE_NO, SUM(RECEIVING.QUANTITY) AS STORE_SUM
+	   FROM RECEIVING LEFT JOIN STORAGE ON STORAGE.STORE_NO = RECEIVING.STORE_NO
+                      LEFT JOIN RAW_MATERIAL ON RECEIVING.RM_NO = RAW_MATERIAL.RM_NO
+                      LEFT JOIN PRODUCT_TYPE  ON RECEIVING.PT_NO = PRODUCT_TYPE.PT_NO
+       GROUP BY STORAGE.STORE_NO 
+	</select>
+
+	<select id="storageStockList" resultMap="stockMap">
+	   SELECT *
+	   FROM storage
+	   ORDER BY STORE_NO  
+	</select>
+
+<!-- ========================================= INSERT UPDATE mapper ========================================= -->
+
+
+	<insert id="InsertRm">
+		INSERT INTO RECEIVING 	
+		VALUES(
+			(SELECT SUBSTR(RM_NAME, 1, 2) ||  SUBSTR(RM_NAME, INSTR(RM_NAME , ' ', 1, 1)+1,  2) ||  SUBSTR(RM_NAME, INSTR(RM_NAME , ' ', 1, 2)+1,  2)
+			 FROM RAW_MATERIAL
+			 WHERE RM_NO = #{rmNo}) || '_' || to_char(to_date(#{recDate},'yyyy-MM-dd'),'yyyyMMdd') || '_' || SEQ_LOT_NO.NEXTVAL,
+			default,		
+			#{rmNo},
+			default,
+			default,
+			#{quantity},
+			default,
+			default,
+			default,			
+			to_date(#{recDate},'yyyy-MM-dd')
+		)
+	</insert>
+	
+	<update id="UpdateRm">
+		UPDATE RECEIVING
+		SET QUANTITY = #{quantity},
+			REC_DATE = to_date(#{recDate},'yyyy-MM-dd')
+		WHERE LOT_NO = #{lotNo}
+	</update>
+	
+	<delete id="DeleteRm">
+		DELETE FROM RECEIVING
+		WHERE LOT_NO = #{lotNo}
+	</delete>
+	
+	
+<!-- ========================================= searchSpecify mapper ========================================= -->
+	
+	<select id="selectRawmaterialAll" resultType="map">
+		SELECT rm_no as "content2", rm_name as "content" 
+		FROM raw_material order by rm_no
+	</select>
+
+	<select id="selectAllRawmaterialNo" resultType="_int">
+		SELECT count(*) from raw_material
+	</select>
+	
+	
+	<select id="selectStorageAll" resultType="map">
+		SELECT store_no as "content2", store_name as "content" 
+		FROM storage order by store_no
+	</select>
+	
+	<select id="selectAllCountByStorageNo" resultType="_int">
+		SELECT count(*) 
+		FROM storage
+	</select>
+	
+	
+	<select id="selectProductTypeAll" resultType="map">
+		SELECT pt_no as "content2", type as "content" 
+		FROM product_type order by pt_no
+	</select>
+	
+	<select id="selectAllCountByProductNo" resultType="_int">
+		SELECT count(*) from product_type
+	</select>
+	
+	<select id="selectRecievingtypeAll" resultType="map">
+		SELECT lot_no as "content2", TO_CHAR(REC_DATE,'YYYY-MM-DD') as "content" , QUANTITY as "content3"
+		FROM RECEIVING 
+		ORDER by LOT_NO
+	</select>
+	
+	<select id="selectRecievingCountByLotNo" resultType="_int">
+		SELECT count(*) 
+		FROM RECEIVING
+	</select>
+	
+<!-- ========================================= searchSpecify mapper END ========================================= -->	
+	
+	
+</mapper>

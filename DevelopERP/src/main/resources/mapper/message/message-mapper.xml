@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="message">
+
+<select id="selectMessageList" resultMap="messageList">
+	select * from message where reciever=#{empName} order by me_no desc
+</select>
+<resultMap id="messageList" type="map"></resultMap>
+<select id="selectMessageAllList" resultType="message">
+	select * from message where reciever = #{empName} order by me_no desc
+</select>
+
+<select id="selectAllCountByAccountNo" resultType="_int">
+	select count(*) from message where reciever=#{empName}
+</select>
+
+<insert id="insertMessage">
+	insert into message values(seq_me_no.nextval,#{meTitle},#{sender},#{reciever},#{message},#{readYn},sysdate)
+</insert>
+
+<select id="detailMessage" resultType="message">
+	select * from message where me_no=#{meNo}
+</select>
+
+<update id="updateMessage">
+	update message set read_yn='y' where me_no=#{meNo}
+</update>
+<select id="messageConfirmPage" resultType="message">
+	select * from message where reciever = #{empName} and read_yn ='y' order by me_no desc
+</select>
+
+<select id="selectAllCountmessageConfirmPage" resultType="_int">
+	select count(*) from message where reciever=#{empName} and read_yn='y' 
+</select>
+<select id="messageNoConfirmPage" resultType="message">
+	select * from message where reciever = #{empName} and read_yn ='n' order by me_no desc
+</select>
+
+<select id="selectAllCountmessageNoConfirmPage" resultType="_int">
+	select count(*) from message where reciever=#{empName} and read_yn='n' 
+</select>
+
+<select id="messageSenderFormPage" resultType="message">
+	select * from message where sender=#{empName} order by me_no desc
+</select>
+
+<select id="selectAllCountmessageSenderFormPage" resultType="_int">
+	select count(*) from message where sender=#{empName}
+</select>
+</mapper>

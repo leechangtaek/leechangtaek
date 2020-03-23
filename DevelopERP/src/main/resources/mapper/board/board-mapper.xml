@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="board">
+
+	
+		<insert id="insertBoardCategory">
+		insert into board_category
+		values(seq_category_no.nextval,
+			   #{boardNo},	
+			   #{categoryComment}, 
+			   #{categoryWriter}, 
+			   #{categoryTitle},
+			   'Y',
+			   #{categoryDate})
+		</insert>
+		
+		<insert id="insertBoardClub">
+		insert into board_club
+		values(seq_club_no.nextval,
+			   #{boardNo},	
+			   #{clubDate}, 
+			   #{clubWriter}, 
+			   #{clubName},
+			   #{clubTitle},
+			   #{clubWhere})
+			   #{clubComment},
+		</insert>
+		 
+			
+			<select id="seletOneBoard" resultType="board">
+				select * from board where board_no = #{boardNo}
+			</select>
+			
+			<select id="selectBoardType" resultType="board">
+				select * from board
+			</select>
+			
+			<select id="boardCategoryView" resultType="boardCategory">
+				select * from board_category where category_no = #{categoryNo}
+			</select>
+			
+			<select id="selectBoardCategoryList" resultType="map">
+				select C.*, B.BOARD_NAME BOARD_NAME, to_char(C.CATEGORY_DATE,'yyyy-MM-dd') CATEGORY_DAY  from board_category C left join board B on C.board_no = B.board_no order by C.Category_date desc
+			</select>	
+			
+			<select id="selectBoardClubList" resultType="map">
+				select C.*, B.*, to_char(C.CATEGORY_DATE,'yyyy-MM-dd') CATEGORY_DAY from board_category C left join board B on C.board_no = B.board_no where C.board_no = #{boardNo} order by C.Category_date desc
+			</select>	 
+			
+			<select id="selectBoardList" resultType="board">
+				select * from board order by board_no
+			</select>
+			
+			<select id="selectBoardAllList" resultType="map">
+				select C.*,B.*,to_char(C.CATEGORY_DATE,'yyyy-MM-dd') CATEGORY_DAY from board_category C left join board B on C.board_no = B.board_no order by C.Category_date
+			</select>
+			<insert id="boardCommentInsert">
+				insert into board_comment values(SEQ_BOARD_COMMENT.NEXTVAL,#{BoardCommentLevel},#{email},#{name},#{BoardCommentContent},#{BoardRef},#{BoardCommentRef},DEFAULT)
+			</insert>
+			<select id="getBoardComment" resultType="BoardComment">
+				select *
+				from board_comment 
+				where board_ref = #{categoryNo}
+				start with board_comment_level = 1
+				connect by board_comment_ref = prior board_comment_no
+				order siblings by board_comment_no asc
+		</select>
+		<delete id="boardCommentDelete">
+			delete board_comment where board_comment_no=#{BoardCommentNo}
+		</delete>
+		<delete id="boardComment2Delete">
+			delete board_comment where board_comment_ref=${BoardCommentNo}
+		</delete>
+		<select id="updateBoard" resultType="BoardCategory">
+		select * from board_category 
+		<if test="_parameter!='관리자'">
+		where category_writer=#{categoryWriter}
+		</if>
+		order by Category_date desc
+		</select>
+		<delete id="boardDelete">
+		delete board_category where category_No=#{categoryNo}
+		</delete>
+		<select id="boardModify" resultType="BoardCategory">
+			select * from board_category where category_No=#{categoryNo}
+		</select>
+		<update id="boardModifyEnd">
+			update board_category set category_comment=#{categoryComment},category_Title=#{categoryTitle},board_no=#{boardNo},category_date=#{categoryDate} where category_no=#{categoryNo}
+		</update>
+</mapper>

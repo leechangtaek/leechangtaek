@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="quality">
+
+	<select id="selectQualityAll" resultMap="qualityVO">
+		select * from quality order by quality_no desc
+	</select>
+	<resultMap id="qualityVO" type="quality"></resultMap>
+	<select id="selectOnebyQualityNo" resultType="map">
+		select p.*, s.store_name from (
+		select q.*, r.spec, r.rm_name as "PNAME" from quality q join raw_material r on q.rm_no = r.rm_no
+		union
+		select q.*, l.spec, l.product_name as "PNAME" from quality q join product_list l on l.pl_no = q.pl_no) p join storage s on p.store_no = s.store_no where quality_no =#{quality_no}
+	</select>
+	<update id="qualityUpdateOne" >
+		update quality set lot_no = #{lotNo}, measurement=#{measurement},store_no=#{storeNo}, type=#{type}, quality_comment=#{qualityComment}
+		where quality_no = #{qualityNo}
+	</update>
+	
+	<select id="selectStoreAll" resultType="map">
+		select store_name as "content" from storage order by store_no
+	</select>
+	<select id="selectQualityColumn" resultType="map">
+		select ${value} as "content" from quality order by quality_no
+	</select>
+	
+	<select id="selectProductTypeAll" resultType="map">
+		select type as "content" from product_type order by pt_no
+	</select>
+	
+	<select id="selectAllCountByStoreNo" resultType="_int">
+		select count(*) from storage
+	</select>
+	
+	<select id="selectAllCountForQuality" resultType="_int">
+		select count(*) from quality
+	</select>
+	
+	<select id="searchBySpecify" resultMap="qualityVO">
+		select * from quality q join storage s on q.store_no=s.store_no
+		where (q.reg_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1)
+		<if test="qualityNo != null and qualityNo !=''">
+		 and q.quality_No = #{qualityNo}
+		</if>
+		<if test="lotNo != null and lotNo !=''">
+		 and q.lot_No = #{lotNo}
+		</if>
+		<if test="type != null and type !=''">
+		 and q.type = #{type}
+		</if>
+		<if test="storeName != null and storeName !=''">
+		 and s.store_Name = #{storeName}
+		</if>
+	
+	</select>
+	
+	<select id="insectionWatingList" resultType="map" parameterType="String">
+		select * from (select p.lot_no, l.product_name as "PRODUCT_NAME", t.type, s.store_name, p.quantity, p.quality_yn, p.insection_yn, production as "ENROLL_DATE", l.spec, l.tol 
+		from production p join product_list l on p.pl_no = l.pl_no join product_type t on p.pt_no = t.pt_no join storage s on p.store_no=s.store_no where p.insection_yn = 'N'
+		union
+		select p.lot_no, l.rm_name as "PRODUCT_NAME", t.type, s.store_name, p.quantity, p.quality_yn, p.insection_yn, rec_date as "ENROLL_DATE", l.spec, l.tol 
+		from receiving p join raw_material l on p.rm_no = l.rm_no join product_type t on p.pt_no = t.pt_no join storage s on p.store_no=s.store_no where p.insection_yn = 'N') where 1=1
+		<if test="_parameter != null and !_parameter.equals('')">
+		 and type = #{_parameter}
+		</if> 
+	</select>
+	
+	<select id="selectInsectionOnebyLotNo" resultType="map">
+		select *
+		 from 
+		 (select p.lot_no, l.product_name as "PRODUCT_NAME", t.type, s.store_name, p.quantity, p.quality_yn, p.insection_yn, production as "ENROLL_DATE", l.spec, l.tol, p.pl_no 
+				from production p join product_list l on p.pl_no = l.pl_no join product_type t on p.pt_no = t.pt_no join storage s on p.store_no=s.store_no
+		 where p.insection_yn = 'N'
+				union
+				select p.lot_no, l.rm_name as "PRODUCT_NAME", t.type, s.store_name, p.quantity, p.quality_yn, p.insection_yn, rec_date as "ENROLL_DATE", l.spec, l.tol,l.rm_no 
+				from receiving p join raw_material l on p.rm_no = l.rm_no join product_type t on p.pt_no = t.pt_no join storage s on p.store_no=s.store_no
+		 where p.insection_yn = 'N') where lot_no = #{lotNo}
+	</select>
+	
+	<update id="updateInsectionYNInRecieving">
+		update receiving set insection_yn = 'Y', quality_yn = #{qualityYN}, store_no=#{storeNo}, measurement=#{measurement} where lot_no = #{lotNo}
+	</update>
+	<update id="updateInsectionYNInProduction">
+		update production set insection_yn = 'Y', quality_yn = #{qualityYN}, store_no=#{storeNo}, measurement=#{measurement} where lot_no = #{lotNo}
+	</update>
+	
+	<insert id="insertQualityInfo">
+		insert into quality values (seq_quality_no.nextval, #{lotNo}, #{storeNo}, #{type}, #{qualityComment},default,#{measurement},#{plNo},#{rmNo})
+	</insert>
+	
+	<select id="selectStoreNoByStoreName" resultType="string">
+		select store_no from storage where store_Name=#{storeName}
+	</select>
+	
+	<select id="selectRPercentByQualityY" resultType="map">
+		select (select rm_name from raw_material where rm_no= r.rm_no) as "label", trunc((sum(quantity)/(select sum(quantity) from receiving where insection_yn='Y')*100),2) as "y"  from receiving r where insection_yn='Y' and quality_yn='Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by rm_no
+	</select>
+	<select id="selectRPercentByQualityN" resultType="map">
+		select (select rm_name from raw_material where rm_no= r.rm_no) as "label", trunc((sum(quantity)/(select sum(quantity) from receiving where insection_yn='Y')*100),2) as "y"  from receiving r where insection_yn='Y' and quality_yn='N' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by rm_no
+	</select>
+	
+	<select id="selectPPercentByQualityY" resultType="map">
+		select product_name as "label", trunc((sum(quantity)/(select sum(quantity) from production where insection_yn='Y')*100),2) as "y"  from production where insection_yn='Y' and quality_yn='Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by product_name
+	</select>
+	<select id="selectPPercentByQualityN" resultType="map">
+		select product_name as "label", trunc((sum(quantity)/(select sum(quantity) from production where insection_yn='Y')*100),2) as "y"  from production where insection_yn='Y' and quality_yn='N' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by product_name
+	</select>
+	
+	<select id="selectCountAllByInsectionY" resultType="map">
+		select * from (
+		select product_name as "label", sum(quantity) as "y" from production where insection_yn = 'Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>		
+		group by product_name
+		union
+		select (select rm_name from raw_material where rm_no = r.rm_no) as "label", sum(quantity) as "y" from receiving r where insection_yn = 'Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by rm_no ) order by 1
+	</select>
+	
+	<select id="selectCountQNByInsectionY" resultType="map">
+		select * from (
+		select product_name as "label", sum(decode(quality_yn,'Y',0,quantity)) as "y" from production where insection_yn = 'Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by product_name
+		union
+		select (select rm_name from raw_material where rm_no = r.rm_no) as "label", sum(decode(quality_yn,'Y',0,quantity)) as "y" from receiving r where insection_yn = 'Y' 
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		group by rm_no ) order by 1
+	</select>
+	
+	<select id="searchProuctNamePtNo" resultType="map">
+		select * from (
+		select pl_no, product_name, pt_no from product_list
+		union
+		select rm_no, rm_name, pt_no from raw_material) where pt_no = #{ptNo}
+	</select>
+	
+	
+	<select id="selectMeasurmentFromPD" resultType="map">
+		select to_char(production,'yyyy-MM-dd') as "label", measurement as "y" from production
+		where insection_yn = 'Y' and pl_no = #{ptNo}
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		order by 1
+	</select>
+	<select id="selectMeasurmentFromRM" resultType="map">
+		select to_char(rec_date,'yyyy-MM-dd') as "label", measurement as "y" from receiving
+		where insection_yn = 'Y' and rm_no = #{ptNo}
+		<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+			and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+		</if>
+		order by 1
+	</select>	
+	<select id="selectSpecByPtNo" resultType="map">
+		select spec, tol from product_list where pl_no = #{ptNo}
+	</select>
+	<select id="selectSpecByRmNo" resultType="map">
+		select spec, tol from raw_material where rm_no = #{ptNo}
+	</select>
+	
+	<select id="selectRCPkInfo" resultType="map">
+	select (select rm_name from raw_material where rm_no = r.rm_no) AS "PRODUCT_NAME", rm_no as "PNO", measurement, count(*) AS "COUNT" from receiving r where insection_yn = 'Y' 
+	and rm_no = #{ptNo}
+	<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and rec_date between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+	</if>
+	group by rm_no, measurement order by measurement
+	
+	</select>
+	
+	<select id="selectPCPkInfo" resultType="map">
+	select (select product_name from product_list where pl_no = p.pl_no) AS "PRODUCT_NAME", pl_no as "PNO", measurement, count(*) AS "COUNT" from production p where insection_yn = 'Y' 
+	and pl_no = #{ptNo}
+	<if test="startDate != null and startDate !='' and endDate != null and endDate !=''">
+		and production between to_date(#{startDate},'yyyy/MM/dd') and to_date(#{endDate},'yyyy/MM/dd')+1
+	</if>
+	group by pl_no, measurement order by measurement
+	
+	</select>
+	
+	<select id="selectPStaticsInfo" resultType="map">
+		select trunc(stddev(measurement),2) as "STTDEV", max(measurement) as "MAX", min(measurement) as "MIN", avg(measurement) as "AVG" from production where pl_no = #{ptNo}
+	</select>
+	<select id="selectRStaticsInfo" resultType="map">
+		select trunc(stddev(measurement),2) as "STTDEV", max(measurement) as "MAX", min(measurement) as "MIN", avg(measurement) as "AVG" from receiving where rm_no = #{ptNo}
+	</select>
+	
+</mapper>

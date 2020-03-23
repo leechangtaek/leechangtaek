@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="messenger">
+	<select id="findChatIdByEmail" resultType="string">
+		SELECT CHATID FROM CHATROOM 
+		WHERE STATUS = 'Y'
+			AND email = #{email} 
+	</select>
+	
+	<insert id="insertChatRoom">
+		INSERT INTO CHATROOM (CHATID, email)
+		VALUES(#{chatId}, #{email})
+	</insert>
+	
+	<select id="findChatListByChatId" resultType="map">
+		select C.* ,E.emp_name
+		from chatlog C left join employee E on C.email = E.email
+		where chatid = #{chatId}
+		order by time 
+	</select>
+	
+	<select id="findRecentList" resultType="map">
+		select *
+		from (
+		    select chatno,
+		           A.chatid, 
+		           (select email from chatroom where chatid = #{chatId} and email!=#{email}) email,
+		           (select emp_name from employee where email = (select email from chatroom where chatid = #{chatId} and email!=#{email})) emp_name,
+		           msg, 
+		           time,
+		           (select count(*) from chatlog where chatid=#{chatId} and email!=#{email} and time!='0') cnt,
+		           (select emp_name from employee where email=#{email}) empname,
+		           rank() over(partition by A.chatid order by time desc) rank 
+		    from chatlog A left join chatroom B
+		        on A.chatid = B.chatid and A.email = B.email) where chatid=#{chatId} order by time desc
+	</select>
+	
+	<update id="updateLastCheck">
+		UPDATE CHATROOM SET LASTCHECK =  #{time}
+		WHERE CHATID = #{chatId} AND email = #{email}
+	</update>
+	<update id="updateLastCheckLog">
+		UPDATE CHATLOG SET TIME =  #{time}
+		WHERE CHATID = #{chatId} AND email != #{email}
+	</update>
+	
+	<insert id="insertChatLog">
+		INSERT INTO CHATLOG (CHATNO, CHATID, EMAIL, MSG, TIME)
+		VALUES(SEQ_CHATNO.NEXTVAL, #{chatId}, #{email}, #{msg}, #{time})
+	</insert>
+	<update id="deleteChatRoom">
+		UPDATE CHATROOM SET STATUS = 'N', ENDDATE=SYSDATE
+		WHERE CHATID = #{chatId}
+	</update>
+	
+	<select id="selectMemberList" resultMap="selectMessengerList">
+		 select E.emp_id as "emp_id",E.emp_name as "emp_name" ,d.dept_title as "dept_title",J.job_name as "job_name", 
+		 E.email as "email", (select C.chatid from chatroom C join chatroom R on C.chatid=R.chatid where C.email = #{email} and R.email=E.email and rownum=1) as "chat_id"
+ 		from employee E 
+		left join department D on E.dept_code = D.dept_id 
+		left join job J on E.job_code=J.job_code 
+		order by E.emp_id
+	</select>
+	<resultMap id="selectMessengerList" type="map"></resultMap>
+	
+	<select id="selectAllCountByAccountNo" resultType="_int">
+		select count(*) from employee
+	</select>
+	
+	<select id="findChatIdList" resultType="map">
+		select * from chatroom C left join employee E on C.email = E.email where C.email=#{email} order by lastcheck desc
+	</select>
+	<select id="messengerCount" resultType="_int">
+		select cnt
+		from (
+		    select chatno,
+		           A.chatid, 
+		           (select email from chatroom where chatid = #{chatId} and email!=#{email}) email, 
+		           msg, 
+		           time,
+		           (select count(*) from chatlog where chatid=#{chatId} and email!=#{email} and time!='0') cnt,
+		           rank() over(partition by A.chatid order by time desc) rank 
+		    from chatlog A left join chatroom B
+		        on A.chatid = B.chatid and A.email = B.email) where chatid=#{chatId} group by cnt order by cnt desc
+	</select>
+	
+	
+	
+</mapper>
