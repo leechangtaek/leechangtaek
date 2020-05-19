@@ -1,4 +1,6 @@
 # leechangtaek(portfolio)
+<h3>메일</h3>
+<ol>ckdxor1014@naver.com</ol>
 <h3>블로그</h3>
 <ol>https://blog.naver.com/ckdxor1014</ol>
 <h3>portfolio</h3>
